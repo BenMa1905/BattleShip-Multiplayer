@@ -1,15 +1,17 @@
 #include <iostream>
-#include <cstdlib>
-#include <cstring>
-#include <unistd.h>
-#include <sys/types.h>
+#include <string>
+#include <vector>
 #include <sys/socket.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
-#include <netdb.h>
-#include <ctime>
+#include <unistd.h>
+#include <thread>
+#include <mutex>
+#include <chrono>
+#include <condition_variable>
 
+// Dependencias del juego
 #include "server.h"
+#include "game.h"
 
 using namespace std;
 
@@ -21,8 +23,26 @@ void handle_play(int client_sockfd)
 }
 
 // funcion para controlar el usuario
-void handle_user(int client_sockfd)
+void handle_user(int client_sockfd, pid_t pid)
+
 {
+    // definicion de variables para el juego
+    Game game;
+    game.id = pid;
+    game.turn = 0;
+    game.is_game_over = false;
+
+    // inicializar el tablero
+    Board player_board = create_board();
+    Board server_board = create_board();
+
+    // enviar un mensaje de respuesta
+    string response = "inicializando juego\n";
+    send(client_sockfd, response.c_str(), response.length(), 0);
+
+    
+    
+
     while (true)
     {
         char buffer[1024];
@@ -30,17 +50,14 @@ void handle_user(int client_sockfd)
 
         if (bytes < 0)
         {
-            cerr << "Error al recibir el mensaje" << endl;
+            cerr << "Error al recibir el mensaje de: " << client_sockfd << " pid: " << pid << endl;
             exit(EXIT_FAILURE);
+            close(client_sockfd); // TODO: comprobar si es necesario cerrar el socket
         }
 
         // procesar el mensaje
         string message = string(buffer, bytes);
-        cout << "Mensaje recibido: " << message << endl;
-
-        // enviar un mensaje de respuesta
-        string response = "Hola cliente";
-        send(client_sockfd, response.c_str(), response.length(), 0);
+        cout << "\nMensaje recibido de " << client_sockfd << " pid: " << pid << "\nMensaje: " << message << endl;
 
         // cerrar la conexion si el cliente envia "exit"
         if (message == "exit")
@@ -110,7 +127,7 @@ int main()
             // Este es el proceso hijo
             close(server_sockfd);
 
-            handle_user(client_sockfd);
+            handle_user(client_sockfd, pid);
 
             // close(client_sockfd);
             // exit(EXIT_SUCCESS);
