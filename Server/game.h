@@ -41,6 +41,13 @@ struct Player
     int socket_fd;
 };
 
+// representacion de un tablero
+struct Board
+{
+    std::vector<std::vector<char>> grid;
+    std::vector<Ship> ships;
+};
+
 // representacion de un juego
 struct Game
 {
@@ -53,15 +60,11 @@ struct Game
     Board server_board;
 };
 
-// representacion de un tablero
-struct Board
-{
-    std::vector<std::vector<char>> grid;
-    std::vector<Ship> ships;
-};
 
 // funciones
 Board create_board();
+Board text_to_board(std::string text);
+void print_board(const Board& board);
 
 
 // funciones auxiliares para crear los barcos
@@ -72,6 +75,95 @@ bool is_valid_position(const Position& position);
 bool is_positon_available(const Board& board,const Position& position);
 bool is_ship_position_valid(const Board& board,const Ship& ship);
 void add_ship_to_board(Board& board, Ship& ship);
+
+/**
+ * funcion para imprimir un tablero
+ * @param board tablero a imprimir
+ * @return void
+*/
+void print_board(const Board& board){
+    std::cout << "    ";
+    for (int i = 0; i < BOARD_SIZE; i++)
+    {
+        if(i < 10){
+            std::cout << i << "  ";
+        }else{
+            std::cout << i<< " ";
+        }
+    }
+    std::cout << std::endl;
+    for (int i = 0; i < BOARD_SIZE; i++)
+    {
+        // agregar un espacio antes de los numeros menores a 10 para que se vea mejor
+        if(i < 10){
+            std::cout << i << "   ";
+        }else{
+            std::cout << i << "  ";
+        }
+
+        for (int j = 0; j < BOARD_SIZE; j++)
+        {
+            if(board.grid[i][j] == 'X'){
+                std::cout << "\033[1;31m" << board.grid[i][j] << "\033[0m  ";
+            }else if(board.grid[i][j] == 'O'){
+                std::cout << "\033[1;34m" << board.grid[i][j] << "\033[0m  ";
+            }else{
+                std::cout << board.grid[i][j] << "  ";
+            }
+            
+        }
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
+}
+
+/**
+ * transforma texto a un tablero de 15x15
+ * el texto debe ir con el formato de 15 filas de 15 caracteres separados por comas
+ * "OOOOOOOOOOOOOOO,OOOOOOOOOOOOOOO,..."
+ * @param text texto a transformar
+ * @return tablero de 15x15
+*/
+Board text_to_board(std::string text){
+    Board board;
+    board.grid.resize(BOARD_SIZE);
+    for (int i = 0; i < BOARD_SIZE; i++)
+    {
+        board.grid[i].resize(BOARD_SIZE);
+        for (int j = 0; j < BOARD_SIZE; j++)
+        {
+            board.grid[i][j] = text[i*BOARD_SIZE + j];
+        }
+    }
+
+    // el texto viene con el siguiente formato: OOOOOOOOOOOOOOO,OOOOOOOOOOOOOOO, asi hasta 15 filas
+    // se debe convertir a una matriz de 15x15
+    std::string lines[BOARD_SIZE];
+    int start = 0;
+    int end = 0;
+    for (int i = 0; i < BOARD_SIZE; i++)
+    {
+        end = text.find(",", start);
+        lines[i] = text.substr(start, end - start);
+        start = end + 1;
+    }
+
+    // se llena el tablero con los datos del texto
+    for (int i = 0; i < BOARD_SIZE; i++)
+    {
+        board.grid[i].resize(BOARD_SIZE);
+        for (int j = 0; j < BOARD_SIZE; j++)
+        {
+            board.grid[i][j] = lines[i][j];
+        }
+    }
+
+    // impresion del tablero para verificar que se haya llenado correctamente
+    std::cout << "user board: " << std::endl;
+    print_board(board);
+
+    return board;
+}
 
 
 /**
@@ -108,7 +200,7 @@ Board create_board(){
                 size = 3;
                 break;
             case 'L':
-                size = 2;
+                size = 1;
                 break;
         }
 
@@ -123,6 +215,9 @@ Board create_board(){
             }
         }
     }
+
+    std::cout << "board created: " << std::endl;
+    print_board(board);
 
     return board;
 }

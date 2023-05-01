@@ -1,12 +1,12 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <thread>
 #include <mutex>
 #include <chrono>
+#include <ctime>
 #include <condition_variable>
 
 // Dependencias del juego
@@ -33,15 +33,32 @@ void handle_user(int client_sockfd, pid_t pid)
     game.is_game_over = false;
 
     // inicializar el tablero
-    Board player_board = create_board();
+    Board player_board;
     Board server_board = create_board();
 
     // enviar un mensaje de respuesta
     string response = "inicializando juego\n";
     send(client_sockfd, response.c_str(), response.length(), 0);
 
-    
-    
+    // El primer mensaje que se recibe es el tablero del jugador
+    char buffer[1024];
+    int bytes = recv(client_sockfd, buffer, sizeof(buffer), 0);
+    string message = string(buffer, bytes);
+
+    // convertir el texto a un tablero
+    player_board = text_to_board(message);
+
+    // imprimir el tablero del servidor
+    cout << "Tablero del servidor " << pid << endl;
+    print_board(server_board);
+
+    // se determina quien empieza 0 jugador, 1 servidor
+    int turn = rand() % 2;
+
+    // enviar un mensaje de respuesta
+    response = to_string(turn) + "\n";
+    send(client_sockfd, response.c_str(), response.length(), 0);
+
 
     while (true)
     {
@@ -59,6 +76,45 @@ void handle_user(int client_sockfd, pid_t pid)
         string message = string(buffer, bytes);
         cout << "\nMensaje recibido de " << client_sockfd << " pid: " << pid << "\nMensaje: " << message << endl;
 
+        // los mensajes recibidos son: "letra,x,y" o "exit"
+        // la letra indica el tipo de mensaje o el resultado de la jugada
+        // x,y son las coordenadas de la jugada. 
+        // fallo: X
+        // acierto: [letra del barco]
+        // gana servidor: D
+        // gana jugador: V
+        // primer turno: *
+
+        // procesar el mensaje
+        std::vector<std::string> tokens = split(message, ',');
+        // comprobar si el mensaje es valido
+        bool is_valid = is_message_valid(tokens,client_sockfd);
+        if (!is_valid)
+        {
+            continue;
+        }
+
+        // procesar el mensaje
+        char letter = tokens[0][0];
+        int x = stoi(tokens[1]);
+        int y = stoi(tokens[2]);
+
+        //TODO: procesar el mensaje
+
+        switch (letter)
+        {
+        case '*':
+            // significa que es el primer turno del jugador
+            // por lo tanto hay que verificar si el jugador gano
+            break;
+        
+        default:
+            cout << "Mensaje: "<< message << endl;
+            break;
+        }
+        
+
+
         // cerrar la conexion si el cliente envia "exit"
         if (message == "exit")
         {
@@ -71,6 +127,7 @@ void handle_user(int client_sockfd, pid_t pid)
 
 int main()
 {
+    srand(time(nullptr));
     // Se crea el socket del servidor
     int server_port = find_port(5000);
 
