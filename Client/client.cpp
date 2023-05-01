@@ -16,8 +16,6 @@ using namespace std;
 // * Definicion de funciones
 
 bool startGame(int);
-void initializeBoards();
-Ship placeShip(int, char);
 
 // ! Main
 int main()
@@ -89,152 +87,46 @@ int main()
 bool startGame(int client_sockfd)
 {
     // * DECLARACION DE VARIABLES
-    std::string input;
-    cout << "Creando input" << endl;
+    std::string resultado;
 
     // * CREACION DE TABLERO
-    cout << "Creando tablero" << endl;
-    initializeBoards();
-    send(client_sockfd, clientBoard, sizeof(clientBoard), 0);
-
-    cout << "Tablero creado" << endl;
-    cout << "Renderizando tablero" << endl;
-
-    printBoard(clientBoard, serverBoard);
-
-    while (true)
+    Board clientBoard = create_board();
+    std::string boardString = board_to_string(clientBoard);
+    if (send(client_sockfd, boardString.c_str(), boardString.length(), 0) < 0)
     {
-        cout << "Ingrese las coordenadas a disparar: " << endl;
-        cin >> input;
-
-        if (input == "exit")
-        {
-            return false;
-        }
-        // Verificar que el string tenga exactamente 2 caracteres
-        if (input.length() != 2)
-        {
-            std::cout << "El string debe tener exactamente 2 caracteres." << std::endl;
-            continue;
-        }
-
-        // Verificar que el primer caracter sea una letra y el segundo sea un número
-        if (!isalpha(input[0]) || !isdigit(input[1]))
-        {
-            std::cout << "El primer caracter debe ser una letra y el segundo un número." << std::endl;
-            continue;
-        }
-        // Convertir la letra a mayúscula
-        input[0] = toupper(input[0]);
-
-        shoot(input, client_sockfd);
+        cerr << "Error al enviar el tablero del cliente" << endl;
+        exit(EXIT_FAILURE);
     }
-    return false;
-}
-
-
-
-// ! initializeBoards
-void initializeBoards()
-{
-    // Inicializar los tableros con 'O'
-    for (int i = 0; i < BOARD_SIZE; i++)
+    else
     {
-        for (int j = 0; j < BOARD_SIZE; j++)
+        if (recv(client_sockfd, &resultado, sizeof(resultado), 0) < 0)
         {
-            clientBoard[i][j] = 'O';
-            serverBoard[i][j] = 'O';
-        }
-    }
-
-    // Generar los barcos para el cliente
-    Ship portaaviones = placeShip(5, 'P');
-    Ship buque[2];
-    Ship submarino[2];
-    for (int i = 0; i < 2; i++)
-    {
-        buque[i] = placeShip(4, 'B');
-        submarino[i] = placeShip(3, 'S');
-    }
-    Ship lancha[5];
-    for (int i = 0; i < 3; i++)
-    {
-        lancha[i] = placeShip(1, 'L');
-    }
-}
-
-// ! placeShip
-Ship placeShip(int shipSize, char identifier)
-{
-    cout << "Colocando barco de tamaño " << shipSize << endl;
-    int row, col, direction;
-    bool isValid = true;
-    std::vector<Position> shipPositions;
-
-    do
-    {
-        isValid = true;
-        // Generar una posición aleatoria para el barco
-        row = rand() % BOARD_SIZE;
-        col = rand() % BOARD_SIZE;
-
-        // Generar una dirección aleatoria (0 = horizontal, 1 = vertical)
-        direction = rand() % 2;
-        cout << "Dirección: " << direction << endl;
-        if (direction == 0)
-        {
-            cout << "Dirección: horizontal" << endl;
+            cerr << "Error al recibir turno" << endl;
+            exit(EXIT_FAILURE);
         }
         else
         {
-            cout << "Dirección: vertical" << endl;
-        }
-        // Verificar si es posible colocar el barco en esa posición y dirección
-        for (int i = 0; i < shipSize; i++)
-        {
-            if (direction == 0)
+            char result;
+            if (resultado == "0")//si es 0 es el turno del cliente
             {
-                if (col + i >= BOARD_SIZE || clientBoard[row][col + i] != 'O')
-                {
-                    isValid = false;
-                    break;
-                }
+                result = manage_game(client_sockfd, '*');
             }
-            else
+            else//si es 1 es el turno del servidor
             {
-                if (row + i >= BOARD_SIZE || clientBoard[row + i][col] != 'O')
-                {
-                    isValid = false;
-                    break;
-                }
+                char serverShot;
+                print_board(clientBoard);
+                cout << "Esperando turno del servidor" << endl;
+                serverShot = receive_shot(client_sockfd);
+                result = manage_game(client_sockfd, serverShot);
             }
         }
+        // * FIN DEL JUEGO
+        // TODO: añadir mensaje de quien comienza el turno
+        // TODO: Falta el manejo de la respuesta como :
+        // * D: Derrota del cliente
+        // * V: Victoria del cliente
+        // * E: Error
+    }
 
-        // Si es válido, colocar el barco en la posición y dirección
-        if (isValid)
-        {
-            for (int i = 0; i < shipSize; i++)
-            {
-                Position pos;
-                if (direction == 0)
-                {
-                    clientBoard[row][col + i] = identifier;
-                    pos.x = row;
-                    pos.y = col + i;
-                }
-                else
-                {
-                    clientBoard[row + i][col] = identifier;
-                    pos.x = row + i;
-                    pos.y = col;
-                }
-                shipPositions.push_back(pos);
-                isValid = true;
-            }
-        }
-    } while (!isValid);
-
-    cout << "Barco colocado" << endl;
-
-    return {shipPositions, identifier};
+    return false;
 }
