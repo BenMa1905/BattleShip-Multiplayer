@@ -90,6 +90,9 @@ int main()
     // Se crea el socket del servidor
     int server_port = find_port(5000);
 
+    // * está creando un socket del tipo TCP/IP
+    // *(conexión orientada a la transmisión de datos)
+    // * utilizando direcciones IPv4 y el protocolo predeterminado.
     int server_sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_sockfd < 0)
     {
