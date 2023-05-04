@@ -10,6 +10,30 @@
 #include <iostream>
 #include <condition_variable>
 
+
+// representacion de una posicion en el tablero
+struct Position
+{
+    int x;
+    int y;
+};
+
+// representacion de un barco
+struct Ship
+{
+    std::vector<Position> positions;
+    char type; // 'P' = portaaviones, 'B' = buque, 'S' = submarino, 'L' = lancha
+};
+
+// representacion de un tablero
+// representacion de un tablero
+struct Board
+{
+    std::vector<std::vector<char>> grid;
+    std::vector<Ship> ships;
+};
+
+
 // constantes del juego
 const char REPLACEMENT_CHAR = '-';
 // Caracter para reemplazar las 'O'
@@ -24,6 +48,8 @@ const int NUM_SHIPS = 9; // 1 portaaviones, 2 buques, 2 submarinos, 3 lanchas
 const char SHIP_TYPES[] = {'P', 'B', 'B', 'S', 'S', 'L', 'L', 'L'};
 
 // funciones
+Board create_board();
+Ship create_ship(char type, int size);
 void print_board(Board board);
 std::string board_to_string(Board board);
 char receive_shot(int client_sockfd);
@@ -47,27 +73,6 @@ const std::string ANSI_MAGENTA = "\u001b[35m";
 const std::string ANSI_CYAN = "\u001b[36m";
 const std::string ANSI_WHITE = "\u001b[37m";
 
-// representacion de una posicion en el tablero
-struct Position
-{
-    int x;
-    int y;
-};
-
-// representacion de un barco
-struct Ship
-{
-    std::vector<Position> positions;
-    char type; // 'P' = portaaviones, 'B' = buque, 'S' = submarino, 'L' = lancha
-};
-
-// representacion de un tablero
-// representacion de un tablero
-struct Board
-{
-    std::vector<std::vector<char>> grid;
-    std::vector<Ship> ships;
-};
 
 /*
     !create_board

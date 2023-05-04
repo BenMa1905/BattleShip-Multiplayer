@@ -1,7 +1,6 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <arpa/inet.h>
 #include <unistd.h>
 #include <thread>
 #include <mutex>
@@ -59,6 +58,15 @@ void handle_user(int client_sockfd, pid_t pid)
     response = to_string(turn) + "\n";
     send(client_sockfd, response.c_str(), response.length(), 0);
 
+    Position server_shot = generate_random_shoot();
+    char server_result;
+    // se comprueba si el jugador empieza
+    if (turn == 1)
+    {
+        // se envia un disparo aleatorio
+        response =  "*," + to_string(server_shot.x) + "," + to_string(server_shot.y) + "\n";
+        send(client_sockfd, response.c_str(), response.length(), 0);
+    }
 
     while (true)
     {
@@ -78,17 +86,18 @@ void handle_user(int client_sockfd, pid_t pid)
 
         // los mensajes recibidos son: "letra,x,y" o "exit"
         // la letra indica el tipo de mensaje o el resultado de la jugada
-        // x,y son las coordenadas de la jugada. 
+        // x,y son las coordenadas de la jugada.
         // fallo: X
         // acierto: [letra del barco]
         // gana servidor: D
         // gana jugador: V
         // primer turno: *
+        // error: E
 
         // procesar el mensaje
         std::vector<std::string> tokens = split(message, ',');
         // comprobar si el mensaje es valido
-        bool is_valid = is_message_valid(tokens,client_sockfd);
+        bool is_valid = is_message_valid(tokens, client_sockfd);
         if (!is_valid)
         {
             continue;
@@ -99,21 +108,74 @@ void handle_user(int client_sockfd, pid_t pid)
         int x = stoi(tokens[1]);
         int y = stoi(tokens[2]);
 
-        //TODO: procesar el mensaje
+        cout << "Letra: " << letter << " x: "<< x << " y: "<< y << endl;
+        // generar posicion de disparo del servidor
+        server_shot = generate_random_shoot();
+        char server_result;
+        // TODO: procesar el mensaje
 
         switch (letter)
         {
         case '*':
             // significa que es el primer turno del jugador
-            // por lo tanto hay que verificar si el jugador gano
+            // por lo tanto hay que verificar si el jugador le atino a algun barco
+            // y enviar la respuesta al cliente del disparo del servidor
+            char player_result = check_shot(server_board, x, y); // esta funcion modifica el tablero del servidor
+
+            // enviar la respuesta al cliente, junto con el ataque del servidor
+            // con el formato de "resultadoDisparo,x,y" con x e y las coordenadas del disparo del servidor
+            response = string(1, player_result) + "," + to_string(server_shot.x) + "," + to_string(server_shot.y) + "\n";
+            send(client_sockfd, response.c_str(), response.length(), 0);
+
+            // se comprueba si el servidor le atino a algun barco del jugador
+            server_result = check_shot(player_board, server_shot.x, server_shot.y);
+            cout << "Disparo del servidor: " << server_result << " x: " << server_shot.x << " y: "<< server_shot.y<< endl;
+
             break;
-        
+
         default:
-            cout << "Mensaje: "<< message << endl;
+            // hay que comprobar si es cierto segun el tablero del jugador que el server tiene
+            // almacenado, de no coincidr los resultados, se envia un mensaje de error al cliente
+            // y se cierra la conexion
+            if(server_result != letter){
+                // enviar un mensaje de error
+                response = "E,-1,-1\n";
+                send(client_sockfd, response.c_str(), response.length(), 0);
+                close(client_sockfd);
+                exit(EXIT_FAILURE);
+            }
+
+            char player_result = check_shot(server_board, x, y); // esta funcion modifica el tablero del servidor
+
+            // enviar la respuesta al cliente, junto con el ataque del servidor
+            // con el formato de "resultadoDisparo,x,y" con x e y las coordenadas del disparo del servidor
+            response = string(1, player_result) + "," + to_string(server_shot.x) + "," + to_string(server_shot.y) + "\n";
+            send(client_sockfd, response.c_str(), response.length(), 0);
+
+            // se comprueba si el servidor le atino a algun barco del jugador
+            server_result = check_shot(player_board, server_shot.x, server_shot.y);
+            cout << "Disparo del servidor: " << server_result << " x: " << server_shot.x << " y: "<< server_shot.y<< endl;
+
+            // se comprueba si el servidor gano
+            if (check_game_over(player_board))
+            {
+                // enviar un mensaje de victoria al cliente
+                response = "D,-1,-1\n";
+                send(client_sockfd, response.c_str(), response.length(), 0);
+                break;
+            }
+
+            // se comprueba si el jugador gano
+            if (check_game_over(server_board))
+            {
+                // enviar un mensaje de victoria al cliente
+                response = "V,-1,-1\n";
+                send(client_sockfd, response.c_str(), response.length(), 0);
+                break;
+            }
+
             break;
         }
-        
-
 
         // cerrar la conexion si el cliente envia "exit"
         if (message == "exit")

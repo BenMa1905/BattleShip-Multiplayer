@@ -65,6 +65,9 @@ struct Game
 Board create_board();
 Board text_to_board(std::string text);
 void print_board(const Board& board);
+char check_shot(Board& board, int x, int y);
+Position generate_random_shoot();
+bool check_game_over(const Board& board);
 
 
 // funciones auxiliares para crear los barcos
@@ -75,6 +78,53 @@ bool is_valid_position(const Position& position);
 bool is_positon_available(const Board& board,const Position& position);
 bool is_ship_position_valid(const Board& board,const Ship& ship);
 void add_ship_to_board(Board& board, Ship& ship);
+
+/**
+ * Funcion que comprueba que no queden barcos en el tablero
+ * si no quedan barcos retorna true, si quedan retorna false
+ * @param board tablero en el que se va a comprobar
+ * @return bool true si no quedan barcos, false si quedan
+*/
+bool check_game_over(const Board& board){
+    bool is_game_over = true;
+    for(int i = 0; i < BOARD_SIZE; i++){
+        for(int j = 0; j < BOARD_SIZE; j++){
+            if(board.grid[i][j] != 'O' && board.grid[i][j] != 'X'){
+                is_game_over = false;
+            }
+        }
+    }
+    return is_game_over;
+}
+
+/**
+ * funcion que genera un disparo aleatorio
+ * @return Position posicion en la que se va a disparar
+*/
+Position generate_random_shoot(){
+    Position position;
+    position.x = rand() % BOARD_SIZE;
+    position.y = rand() % BOARD_SIZE;
+    return position;
+}
+
+/**
+ * funcion que recibe un disparo y retorna a que le dio
+ * @param board tablero en el que se va a disparar
+ * @param x posicion x del disparo
+ * @param y posicion y del disparo
+ * @return char 'O' si no le dio a nada, 'P' si le dio a un portaaviones, 'B' si le dio a un buque, 'S' si le dio a un submarino, 'L' si le dio a una lancha
+*/
+char check_shot(Board& board, int x, int y){
+    char response;
+    if(board.grid[x][y] == 'O'){
+        response = 'O';
+    }else{
+        response = board.grid[x][y];
+        board.grid[x][y] = 'X';
+    }
+    return response;
+}
 
 /**
  * funcion para imprimir un tablero
