@@ -8,13 +8,13 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <ctime>
+#include <algorithm>
 
 using namespace std;
 
 #include "client.h"
 
 // * Definicion de funciones
-
 bool startGame(int);
 
 // ! Main
@@ -90,7 +90,7 @@ bool startGame(int client_sockfd)
     std::string resultado;
 
     // * CREACION DE TABLERO
-    Board clientBoard = create_board();
+    clientBoard = create_board();
     std::string boardString = board_to_string(clientBoard);
     if (send(client_sockfd, boardString.c_str(), boardString.length(), 0) < 0)
     {
@@ -107,25 +107,27 @@ bool startGame(int client_sockfd)
         else
         {
             char result;
-            if (resultado == "0")//si es 0 es el turno del cliente
+            if (resultado == "0") // si es 0 es el turno del cliente
             {
                 result = manage_game(client_sockfd, '*');
             }
-            else//si es 1 es el turno del servidor
+            else // si es 1 es el turno del servidor
             {
                 char serverShot;
-                print_board(clientBoard);
+                printBoard();
                 cout << "Esperando turno del servidor" << endl;
                 serverShot = receive_shot(client_sockfd);
                 result = manage_game(client_sockfd, serverShot);
             }
         }
-        // * FIN DEL JUEGO
-        // TODO: añadir mensaje de quien comienza el turno
-        // TODO: Falta el manejo de la respuesta como :
-        // * D: Derrota del cliente
-        // * V: Victoria del cliente
-        // * E: Error
+        /* * FIN DEL JUEGO
+        TODO: añadir mensaje de quien comienza el turno
+        TODO: revisar la impresion de los tableros
+        TODO: Falta el manejo de la respuesta como :
+        * D: Derrota del cliente
+        * V: Victoria del cliente
+        * E: Error
+        */
     }
 
     return false;

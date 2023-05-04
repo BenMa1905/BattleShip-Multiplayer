@@ -9,43 +9,7 @@
 #include <iomanip>
 #include <iostream>
 #include <condition_variable>
-
-// constantes del juego
-const char REPLACEMENT_CHAR = '-';
-// Caracter para reemplazar las 'O'
-// Tamaño del tablero
-const int BOARD_SIZE = 15;
-
-// Tableros del cliente y del servidor
-char clientBoard[BOARD_SIZE][BOARD_SIZE];
-char serverBoard[BOARD_SIZE][BOARD_SIZE];
-// Número de barcos
-const int NUM_SHIPS = 9; // 1 portaaviones, 2 buques, 2 submarinos, 3 lanchas
-const char SHIP_TYPES[] = {'P', 'B', 'B', 'S', 'S', 'L', 'L', 'L'};
-
-// funciones
-void print_board(Board board);
-std::string board_to_string(Board board);
-char receive_shot(int client_sockfd);
-char send_shot(std::string input, int client_sockfd);
-char get_letter(int number);
-bool is_valid_position(const Position &position);
-bool is_positon_available(const Board &board, const Position &position);
-bool is_ship_position_valid(const Board &board, const Ship &ship);
-void add_ship_to_board(Board &board, Ship &ship);
-int is_valid_coord(std::string coord);
-char manage_game(int client_sockfd, char lastShot);
-
-// ! Definicion de colores para imprimir
-const std::string ANSI_RESET = "\u001b[0m";
-const std::string ANSI_BLACK = "\u001b[30m";
-const std::string ANSI_RED = "\u001b[31m";
-const std::string ANSI_GREEN = "\u001b[32m";
-const std::string ANSI_YELLOW = "\u001b[33m";
-const std::string ANSI_BLUE = "\u001b[34m";
-const std::string ANSI_MAGENTA = "\u001b[35m";
-const std::string ANSI_CYAN = "\u001b[36m";
-const std::string ANSI_WHITE = "\u001b[37m";
+#include <algorithm>
 
 // representacion de una posicion en el tablero
 struct Position
@@ -62,13 +26,54 @@ struct Ship
 };
 
 // representacion de un tablero
-// representacion de un tablero
 struct Board
 {
     std::vector<std::vector<char>> grid;
     std::vector<Ship> ships;
 };
 
+// constantes del juego
+const char REPLACEMENT_CHAR = '-';
+// Caracter para reemplazar las 'O'
+// Tamaño del tablero
+const int BOARD_SIZE = 15;
+// Ultimo disparo
+char lastShot = '*';
+
+// Tableros del cliente y del servidor
+Board clientBoard;
+Board serverBoard;
+// Número de barcos
+const int NUM_SHIPS = 9; // 1 portaaviones, 2 buques, 2 submarinos, 3 lanchas
+const char SHIP_TYPES[] = {'P', 'B', 'B', 'S', 'S', 'L', 'L', 'L'};
+
+// ! Definicion de colores para imprimir
+const std::string ANSI_RESET = "\u001b[0m";
+const std::string ANSI_BLACK = "\u001b[30m";
+const std::string ANSI_RED = "\u001b[31m";
+const std::string ANSI_GREEN = "\u001b[32m";
+const std::string ANSI_YELLOW = "\u001b[33m";
+const std::string ANSI_BLUE = "\u001b[34m";
+const std::string ANSI_MAGENTA = "\u001b[35m";
+const std::string ANSI_CYAN = "\u001b[36m";
+const std::string ANSI_WHITE = "\u001b[37m";
+
+// funciones
+void printBoard();
+Board create_board();
+std::string board_to_string(Board board);
+char receive_shot(int client_sockfd);
+char send_shot(std::string input, int client_sockfd);
+char get_letter(int number);
+bool is_valid_position(const Position &position);
+bool is_positon_available(const Board &board, const Position &position);
+bool is_ship_position_valid(const Board &board, const Ship &ship);
+void add_ship_to_board(Board &board, Ship &ship);
+int is_valid_coord(std::string coord);
+char manage_game(int client_sockfd, char lastShot);
+Ship create_ship(char type, int size);
+char getCellValue(const Board &board, int row, int col);
+void show_lastShot(int y, int x);
 /*
     !create_board
     * Crea un tablero de tamaño BOARD_SIZE x BOARD_SIZE
@@ -79,14 +84,15 @@ struct Board
 */
 Board create_board()
 {
-    Board board;
-    board.grid.resize(BOARD_SIZE);
+    clientBoard.grid.resize(BOARD_SIZE);
+    serverBoard.grid.resize(BOARD_SIZE);
     for (int i = 0; i < BOARD_SIZE; i++)
     {
-        board.grid[i].resize(BOARD_SIZE);
+        clientBoard.grid[i].resize(BOARD_SIZE);
         for (int j = 0; j < BOARD_SIZE; j++)
         {
-            board.grid[i][j] = 'O';
+            clientBoard.grid[i][j] = 'O';
+            serverBoard.grid[i][j] = 'O';
         }
     }
 
@@ -113,18 +119,18 @@ Board create_board()
         {
             Ship ship = create_ship(type, size);
 
-            if (is_ship_position_valid(board, ship))
+            if (is_ship_position_valid(clientBoard, ship))
             {
-                add_ship_to_board(board, ship);
+                add_ship_to_board(clientBoard, ship);
                 break;
             }
         }
     }
 
     std::cout << "board created: " << std::endl;
-    print_board(board);
+    printBoard();
 
-    return board;
+    return clientBoard;
 }
 
 /*
@@ -144,7 +150,7 @@ std::string board_to_string(Board board)
 
 // ! printBoard
 // Función para imprimir las tablas
-void printBoard(Board board)
+void printBoard()
 {
     // Imprimir los números de las columnas
     std::cout << "   ";
@@ -168,7 +174,7 @@ void printBoard(Board board)
         // Imprimir la tabla del cliente
         for (int col = 0; col < BOARD_SIZE; col++)
         {
-            char cell = clientBoard[row][col];
+            char cell = getCellValue(clientBoard, row, col);
             if (cell == 'O')
             {
                 cell = REPLACEMENT_CHAR;
@@ -182,7 +188,7 @@ void printBoard(Board board)
         // Imprimir la tabla del servidor
         for (int col = 0; col < BOARD_SIZE; col++)
         {
-            char cell = serverBoard[row][col];
+            char cell = getCellValue(clientBoard, row, col);
             if (cell == 'O')
             {
                 cell = REPLACEMENT_CHAR;
@@ -212,7 +218,7 @@ char send_shot(std::string input, int client_sockfd)
     {
         coord = input[1];
     }
-    ss << "*," << input[0] << "," << coord;
+    ss << lastShot << "," << input[0] << "," << coord;
     std::string message = ss.str();
 
     // Se envía la letra al servidor
@@ -226,6 +232,21 @@ char send_shot(std::string input, int client_sockfd)
         cout << "Disparando a la coordenada: (" << input[0] << ", " << coord << ")" << endl;
         // Se recibe la respuesta del servidor
         result = receive_shot(client_sockfd);
+        switch (result)
+        {
+        case 'D':
+            cout << ANSI_RED << "¡Has perdido!" << ANSI_RESET << endl;
+            break;
+        case 'V':
+            cout << ANSI_GREEN << "¡Has ganado!" << ANSI_RESET << endl;
+            break;
+        case 'E':
+            cout << ANSI_YELLOW << "Ha ocurrido un error con el servidor" << ANSI_RESET << endl;
+            break;
+        case 'F':
+            cout << ANSI_YELLOW << "El servidor a cerrado la conexion" << ANSI_RESET << endl;
+            break;
+        }
     }
     return (result);
 }
@@ -237,7 +258,6 @@ char send_shot(std::string input, int client_sockfd)
 char receive_shot(int client_sockfd)
 {
     std::string result; // Mensaje que llega desde server
-    char box;           // donde se guardará el resultado del disparo
     int coordY, coordX; // coordenadas del disparo
     char auxChar;       // caracter auxiliar para el retorno de la función
 
@@ -249,27 +269,73 @@ char receive_shot(int client_sockfd)
     else
     {
         std::istringstream iss(result);
-        iss >> box;
+        iss >> lastShot;
         iss.ignore(); // Ignorar la coma
         iss >> coordY;
         iss.ignore(); // Ignorar la coma
-        iss >> coordY;
+        iss >> coordX;
+
+        switch (lastShot)
+        {
+        case 'D':
+            return 'D';
+            break;
+        case 'V':
+            return 'V';
+            break;
+        case 'E':
+            return 'E';
+            break;
+        case 'F':
+            return 'F';
+            break;
+        }
+
+        show_lastShot(coordY, coordX);
+
         cout << ANSI_RED << "Te han disparado a " << get_letter(coordX) << coordY << ANSI_RESET << endl;
 
-        if (clientBoard[coordY][coordX] == 'O')
+        if (getCellValue(clientBoard, coordY, coordX) == 'O')
         {
+            cout << ANSI_RED << "El servidor ha disparado a la coordenada: (" << get_letter(coordY) << coordX << ")" << ANSI_RESET << endl;
             cout << ANSI_GREEN << "El servidor ha fallado!" << ANSI_RESET << endl;
-            clientBoard[coordY][coordX] = 'X';
+            clientBoard.grid[coordY][coordX] = 'X';
             return 'X';
         }
         else
         {
-            auxChar = clientBoard[coordY][coordX];
-            clientBoard[coordY][coordX] = 'X';
+            show_lastShot(coordY, coordX);
+            auxChar = getCellValue(clientBoard, coordY, coordX);
+            clientBoard.grid[coordY][coordX] = 'X';
             return auxChar;
         }
     }
     return 'E';
+}
+
+// ! show_lastShot
+// Función para mostrar la ultima coordenada a la que se disparo
+void show_lastShot(int y, int x)
+{
+    cout << ANSI_RED << "El servidor ha disparado a la coordenada: (" << get_letter(y) << x << ")" << ANSI_RESET << endl;
+    switch (lastShot)
+    {
+    case 'P':
+        cout << ANSI_RED << "Le han dado a tu Portaaviones!" << ANSI_RESET << endl;
+        break;
+    case 'B':
+        cout << ANSI_RED << "Le han dado a tu Buque!" << ANSI_RESET << endl;
+        break;
+    case 'L':
+        cout << ANSI_RED << "Ha hundido una de tus Lanchas!" << ANSI_RESET << endl;
+        break;
+    case 'S':
+        cout << ANSI_RED << "Le han dado a tu Submarino!" << ANSI_RESET << endl;
+        break;
+    default:
+        cout << ANSI_GREEN << "El servidor ha fallado!" << ANSI_RESET << endl;
+        break;
+    }
 }
 
 // ! get_letter
@@ -278,6 +344,14 @@ char get_letter(int number)
 {
     char letter = 'A' + number - 1;
     return letter;
+}
+
+// ! getCellValue
+// Función para obtener el valor de una celda
+char getCellValue(const Board &board, int row, int col)
+{
+    char cell = board.grid[row][col];
+    return cell;
 }
 
 // ! createShip
@@ -398,6 +472,8 @@ int is_valid_coord(std::string coord)
         return 2;
     }
 
+    int num;
+
     switch (coord.length())
     {
     case 2:
@@ -411,7 +487,7 @@ int is_valid_coord(std::string coord)
         }
         break;
     case 3:
-        int num = (coord[1] * 10) + coord[2];
+        num = (coord[1] * 10) + coord[2];
         if (!isalpha(coord[0]) || num > 15 || num < 1)
         {
             return 0;
@@ -436,19 +512,15 @@ int is_valid_coord(std::string coord)
 */
 char manage_game(int client_sockfd, char lastShot)
 {
-    /*
-    TODO: Implementar respuestas de los barcos
-    *revisar respuestas y envios de disparos
-    */
     // * Variables
     std::string input;
 
     // * Loop principal
     do
     {
-        print_board(clientBoard);// Imprimir el tablero
+        printBoard(); // Imprimir el tablero
         cout << "Elige la coordenada a la que disparar" << endl;
-        cin >> input;// * se le pide al usuario que ingrese la coordenada
+        cin >> input; // * se le pide al usuario que ingrese la coordenada
         // Verificaciones del string con la funcion is_valid_coord
         switch (is_valid_coord(input))
         {
