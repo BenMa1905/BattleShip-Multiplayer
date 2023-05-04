@@ -9,70 +9,71 @@
 #include <chrono>
 #include <condition_variable>
 
-// constantes del juego
-const int BOARD_SIZE = 15;
-const int NUM_SHIPS = 9; // 1 portaaviones, 2 buques, 2 submarinos, 3 lanchas
-// * Portaaviones:
-// ! 5 posiciones
-
-// * Buque:
-// ! 4 posiciones
-
-// * Submarino:
-// ! 3 posiciones
-
-// * Lancha:
-// ! 1 posiciones
-
-// representacion de una posicion en el tablero
-struct Position
-{
-    int x;
-    int y;
-};
-
-// representacion de un barco
-struct Ship
-{
-    std::vector<Position> positions;
-    char type; // 'P' = portaaviones, 'B' = buque, 'S' = submarino, 'L' = lancha
-};
-
-// representacion de un tablero
-struct Board
-{
-    char board[BOARD_SIZE][BOARD_SIZE];
-    std::vector<Ship> ships;
-};
-
-// representacion de un jugador
-struct Player
-{
-    int id;
-    int socket_fd;
-
-};
-
-// representacion de un juego
-struct Game
-{
-    int id; // identificador del juego
-    Player player;
-    int turn; // 0 = no ha empezado, 1 = turno del jugador 1, 2 = turno del servidor
-    bool is_game_over;
-    bool is_player_ready;
-};
-
-
-// variables globales
-std::vector<Game> games;
-std::mutex games_mutex;
-std::condition_variable games_cv;
-
 // funciones
 int find_port(int initial_port);
+std::vector<std::string> split(std::string str, char delimiter);
+bool is_message_valid(std::vector<std::string> tokens);
 
-int find_port(int initial_port){
+/**
+ * funcion que comprueba si un mensaje es valido
+ * @param message mensaje a comprobar
+ * @return true si es valido, false si no
+ */
+bool is_message_valid(std::vector<std::string> tokens, int client_sockfd)
+{
+    if (tokens.size() != 3)
+    {
+        std::cerr << "El mensaje debe tener 3 tokens" << std::endl;
+        // si el mensaje no tiene 3 tokens, no es valido
+        // se solicita al cliente que envie un mensaje valido
+        std::string response = "E,-1,-1";
+        send(client_sockfd, response.c_str(), response.length(), 0);
+        return false;
+    }
+
+    // se comprueba que el primer token sea una letra
+    if (tokens[0].length() != 1)
+    {
+        std::cerr << "El primer token debe ser una letra" << std::endl;
+        // si el primer token no es una letra, no es valido
+        // se solicita al cliente que envie un mensaje valido
+        std::string response = "R,-1,-1";
+        send(client_sockfd, response.c_str(), response.length(), 0);
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * toma un mensaje y lo divide en un vector de strings
+ * separados por el delimitador
+ * @param str mensaje a dividir
+ * @param delimiter delimitador
+ * @return vector de strings
+ */
+std::vector<std::string> split(std::string str, char delimiter)
+{
+    std::vector<std::string> result;
+    std::string word = "";
+    for (auto x : str)
+    {
+        if (x == delimiter)
+        {
+            result.push_back(word);
+            word = "";
+        }
+        else
+        {
+            word = word + x;
+        }
+    }
+    result.push_back(word);
+    return result;
+}
+
+int find_port(int initial_port)
+{
     int port = initial_port;
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
@@ -85,7 +86,7 @@ int find_port(int initial_port){
     server_address.sin_family = AF_INET;
     server_address.sin_port = htons(port);
     server_address.sin_addr.s_addr = INADDR_ANY;
-    server_address.sin_port=htons(port);
+    server_address.sin_port = htons(port);
 
     // intenta vincular el socket a la direccion del servidor
     int bind_result = bind(sockfd, (struct sockaddr *)&server_address, sizeof(server_address));
@@ -101,84 +102,3 @@ int find_port(int initial_port){
     close(sockfd);
     return port;
 }
-
-void generateBoard(Board& board)
-{
-    // Inicializar el tablero con 'O'
-    for (int i = 0; i < BOARD_SIZE; i++)
-    {
-        for (int j = 0; j < BOARD_SIZE; j++)
-        {
-            board.board[i][j] = 'O';
-        }
-    }
-
-    // Generar los barcos aleatoriamente
-    srand(time(nullptr));
-
-    // Barco tipo Portaaviones
-    for (int i = 0; i < 1; i++)
-    {
-        Ship ship;
-        ship.type = 'P';
-        ship.positions.resize(5);
-        for (int j = 0; j < 5; j++)
-        {
-            int x = rand() % BOARD_SIZE;
-            int y = rand() % BOARD_SIZE;
-            ship.positions[j] = {x, y};
-            board.board[x][y] = ship.type;
-        }
-        board.ships.push_back(ship);
-    }
-
-    // Barcos tipo Buque
-    for (int i = 0; i < 2; i++)
-    {
-        Ship ship;
-        ship.type = 'B';
-        ship.positions.resize(4);
-        for (int j = 0; j < 4; j++)
-        {
-            int x = rand() % BOARD_SIZE;
-            int y = rand() % BOARD_SIZE;
-            ship.positions[j] = {x, y};
-            board.board[x][y] = ship.type;
-        }
-        board.ships.push_back(ship);
-    }
-
-    // Barcos tipo Submarino
-    for (int i = 0; i < 2; i++)
-    {
-        Ship ship;
-        ship.type = 'S';
-        ship.positions.resize(3);
-        for (int j = 0; j < 3; j++)
-        {
-            int x = rand() % BOARD_SIZE;
-            int y = rand() % BOARD_SIZE;
-            ship.positions[j] = {x, y};
-            board.board[x][y] = ship.type;
-        }
-        board.ships.push_back(ship);
-    }
-
-    // Barcos tipo Lancha
-    for (int i = 0; i < 3; i++)
-    {
-        Ship ship;
-        ship.type = 'L';
-        ship.positions.resize(1);
-        for (int j = 0; j < 1; j++)
-        {
-            int x = rand() % BOARD_SIZE;
-            int y = rand() % BOARD_SIZE;
-            ship.positions[j] = {x, y};
-            board.board[x][y] = ship.type;
-        }
-        board.ships.push_back(ship);
-    }
-}
-
-

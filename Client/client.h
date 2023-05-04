@@ -215,10 +215,11 @@ void printBoard()
 */
 char send_shot(std::string input, int client_sockfd)
 {
+    // TODO cambiar @param input[0] a numero
     char result;
     std::stringstream ss;
     int coord;
-
+    int letter = input[0] - 'A' + 1;
     if (input.length() == 3)
     {
         coord = (input[1] * 10) + input[2];
@@ -227,17 +228,20 @@ char send_shot(std::string input, int client_sockfd)
     {
         coord = input[1];
     }
-    ss << lastShot << "," << input[0] << "," << coord;
+
+    ss << lastShot << "," << letter << "," << coord;
     std::string message = ss.str();
 
+    int bytes = send(client_sockfd, message.c_str(), message.length(), 0);
     // Se envía la letra al servidor
-    if (send(client_sockfd, message.c_str(), message.length(), 0) < 0)
+    if ( bytes < 0)
     {
         cerr << "Error al enviar el disparo al servidor" << endl;
         exit(EXIT_FAILURE);
     }
     else
     {
+        cout << "Disparando a la coordenada: (" << letter << ", " << coord << ")" << endl;
         cout << "Disparando a la coordenada: (" << input[0] << ", " << coord << ")" << endl;
         // Se recibe la respuesta del servidor
         result = receive_shot(client_sockfd);
@@ -251,6 +255,7 @@ char send_shot(std::string input, int client_sockfd)
             break;
         case 'E':
             cout << ANSI_YELLOW << "Ha ocurrido un error con el servidor" << ANSI_RESET << endl;
+
             break;
         case 'F':
             cout << ANSI_YELLOW << "El servidor a cerrado la conexion" << ANSI_RESET << endl;
@@ -277,6 +282,7 @@ char receive_shot(int client_sockfd)
     }
     else
     {
+        cout << "Respuesta del servidor: " << response << endl;
         std::istringstream iss(response);
         iss >> lastShot;
         iss.ignore(); // Ignorar la coma
@@ -300,14 +306,12 @@ char receive_shot(int client_sockfd)
             break;
         }
 
-        show_lastShot(coordY, coordX);
 
         cout << ANSI_RED << "Te han disparado a " << get_letter(coordX) << coordY << ANSI_RESET << endl;
 
         if (getCellValue(clientBoard, coordY, coordX) == 'O')
         {
-            cout << ANSI_RED << "El servidor ha disparado a la coordenada: (" << get_letter(coordY) << coordX << ")" << ANSI_RESET << endl;
-            cout << ANSI_GREEN << "El servidor ha fallado!" << ANSI_RESET << endl;
+            show_lastShot(coordY, coordX);
             clientBoard.grid[coordY][coordX] = 'X';
             return 'X';
         }
@@ -523,7 +527,7 @@ char manage_game(int client_sockfd, char lastShot)
 {
     // * Variables
     std::string input;
-
+    char verifyShot;
     // * Loop principal
     do
     {
@@ -531,13 +535,19 @@ char manage_game(int client_sockfd, char lastShot)
         cout << "Elige la coordenada a la que disparar" << endl;
         cin >> input; // * se le pide al usuario que ingrese la coordenada
         // Verificaciones del string con la funcion is_valid_coord
+
+        cout << "Coordenada: " << input.length() << endl;
+
         switch (is_valid_coord(input))
         {
         case 0: // si es 0 es invalido
             std::cout << "Coordenada inválida." << std::endl;
             break;
         case 1: // si es 1 es valido
-            send_shot(input, client_sockfd);
+            verifyShot = send_shot(input, client_sockfd);
+            if(verifyShot == 'E' || verifyShot == 'D' || verifyShot == 'V'){
+                return verifyShot;
+            }
             break;
         case 2: // si es 2 es exit
             return false;

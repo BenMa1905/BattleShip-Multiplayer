@@ -24,7 +24,7 @@ int main()
 
     // * INICIO DEL PROGRAMA
     // Se crea el socket del cliente
-    int client_sockfd = socket(AF_INET, SOCK_STREAM, 0);// TODO CAMBIAR A SERVER socket
+    int client_sockfd = socket(AF_INET, SOCK_STREAM, 0); // TODO CAMBIAR A SERVER socket
     if (client_sockfd < 0)
     {
         cerr << "Error al abrir el socket del cliente" << endl;
@@ -34,7 +34,7 @@ int main()
     // Se especifica la dirección del servidor
     struct sockaddr_in server_address;
     server_address.sin_family = AF_INET;
-    server_address.sin_port = htons(5000);                   // Puerto del servidor
+    server_address.sin_port = htons(5000);       // Puerto del servidor
     server_address.sin_addr.s_addr = INADDR_ANY; // Dirección IP del servidor
 
     // Se establece la conexión con el servidor
@@ -54,7 +54,8 @@ int main()
         cout << "Ingrese una opción: ";
         int option;
         cin >> option;
-        switch (option){
+        switch (option)
+        {
         case 1:
             cout << "Iniciando partida..." << endl;
             if (startGame(client_sockfd))
@@ -98,6 +99,7 @@ bool startGame(int client_sockfd)
     else
     {
         int bytes = recv(client_sockfd, response, sizeof(response), 0);
+        string message = string(response, bytes);
         if (bytes < 0)
         {
             cerr << "Error al recibir turno" << endl;
@@ -105,6 +107,9 @@ bool startGame(int client_sockfd)
         }
         else
         {
+
+            cout << ANSI_BLACK << "TURNO " << message << ANSI_RESET << endl;
+
             char result;
             if (response == "0") // si es 0 es el turno del cliente
             {
@@ -113,12 +118,33 @@ bool startGame(int client_sockfd)
             else // si es 1 es el turno del servidor
             {
                 char serverShot;
+                cout << ANSI_CYAN << "Esperando turno del servidor" << ANSI_RESET << endl;
                 printBoard();
-                cout << "Esperando turno del servidor" << endl;
                 serverShot = receive_shot(client_sockfd);
                 result = manage_game(client_sockfd, serverShot);
             }
+            // * MANEJO DE RESULTADOS DE LA PARTIDA
+            switch (result)
+            {
+            case 'D':
+                cout << ANSI_RED << "Derrota del cliente" << ANSI_RESET << endl;
+                return false;
+                break;
+            case 'V':
+                cout << ANSI_GREEN << "Victoria del cliente" << ANSI_RESET << endl;
+                return true;
+                break;
+            case 'E':
+                cout << ANSI_RED << "Error del servidor" << ANSI_RESET << endl;
+                return false;
+                break;
+            default:
+                cout << ANSI_RED << "Error de cliente" << ANSI_RESET << endl;
+            return false;
+                break;
+            }
         }
+
         /* * FIN DEL JUEGO
         TODO: añadir mensaje de quien comienza el turno
         TODO: revisar la impresion de los tableros
