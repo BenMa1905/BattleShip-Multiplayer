@@ -84,11 +84,13 @@ void show_lastShot(int y, int x);
 */
 Board create_board()
 {
+    cout << "creating board" << endl;
     clientBoard.grid.resize(BOARD_SIZE);
     serverBoard.grid.resize(BOARD_SIZE);
     for (int i = 0; i < BOARD_SIZE; i++)
     {
         clientBoard.grid[i].resize(BOARD_SIZE);
+        serverBoard.grid[i].resize(BOARD_SIZE);
         for (int j = 0; j < BOARD_SIZE; j++)
         {
             clientBoard.grid[i][j] = 'O';
@@ -117,10 +119,12 @@ Board create_board()
 
         for (int i = 0; i < 100; i++) // intenta 100 veces crear un barco válido
         {
+            cout << "creating ship" << endl;
             Ship ship = create_ship(type, size);
 
             if (is_ship_position_valid(clientBoard, ship))
             {
+                cout << "adding ship to board" << endl;
                 add_ship_to_board(clientBoard, ship);
                 break;
             }
@@ -138,13 +142,18 @@ Board create_board()
     * Convierte un tablero a un string
 */
 
-std::string board_to_string(Board board)
+std::string board_to_string()
 {
     std::string board_string = "";
     for (int i = 0; i < BOARD_SIZE; i++)
     {
-        board_string += std::string(board.grid[i].begin(), board.grid[i].end());
+        for(int j = 0; j < BOARD_SIZE; j++)
+        {
+            board_string += clientBoard.grid[i][j];
+        }
+        board_string += ",";
     }
+    cout << "board string: " << board_string << endl;
     return board_string;
 }
 
@@ -257,18 +266,18 @@ char send_shot(std::string input, int client_sockfd)
 */
 char receive_shot(int client_sockfd)
 {
-    std::string result; // Mensaje que llega desde server
+    char response[1024]; // Mensaje que llega desde server
     int coordY, coordX; // coordenadas del disparo
     char auxChar;       // caracter auxiliar para el retorno de la función
-
-    if (recv(client_sockfd, &result, sizeof(result), 0) < 0)
+    int bytes = recv(client_sockfd, response, sizeof(response), 0);
+    if (bytes < 0)
     {
         cerr << "Error al recibir el resultado del servidor" << endl;
         exit(EXIT_FAILURE);
     }
     else
     {
-        std::istringstream iss(result);
+        std::istringstream iss(response);
         iss >> lastShot;
         iss.ignore(); // Ignorar la coma
         iss >> coordY;

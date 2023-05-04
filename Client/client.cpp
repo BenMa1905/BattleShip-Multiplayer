@@ -1,4 +1,3 @@
-#include <iostream>
 #include <cstdlib>
 #include <cstring>
 #include <unistd.h>
@@ -25,7 +24,7 @@ int main()
 
     // * INICIO DEL PROGRAMA
     // Se crea el socket del cliente
-    int client_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    int client_sockfd = socket(AF_INET, SOCK_STREAM, 0);// TODO CAMBIAR A SERVER socket
     if (client_sockfd < 0)
     {
         cerr << "Error al abrir el socket del cliente" << endl;
@@ -36,7 +35,7 @@ int main()
     struct sockaddr_in server_address;
     server_address.sin_family = AF_INET;
     server_address.sin_port = htons(5000);                   // Puerto del servidor
-    server_address.sin_addr.s_addr = inet_addr("127.0.0.1"); // Dirección IP del servidor
+    server_address.sin_addr.s_addr = INADDR_ANY; // Dirección IP del servidor
 
     // Se establece la conexión con el servidor
     if (connect(client_sockfd, (struct sockaddr *)&server_address, sizeof(server_address)) < 0)
@@ -55,8 +54,7 @@ int main()
         cout << "Ingrese una opción: ";
         int option;
         cin >> option;
-        switch (option)
-        {
+        switch (option){
         case 1:
             cout << "Iniciando partida..." << endl;
             if (startGame(client_sockfd))
@@ -87,11 +85,11 @@ int main()
 bool startGame(int client_sockfd)
 {
     // * DECLARACION DE VARIABLES
-    std::string resultado;
+    char response[1024];
 
     // * CREACION DE TABLERO
     clientBoard = create_board();
-    std::string boardString = board_to_string(clientBoard);
+    std::string boardString = board_to_string();
     if (send(client_sockfd, boardString.c_str(), boardString.length(), 0) < 0)
     {
         cerr << "Error al enviar el tablero del cliente" << endl;
@@ -99,7 +97,8 @@ bool startGame(int client_sockfd)
     }
     else
     {
-        if (recv(client_sockfd, &resultado, sizeof(resultado), 0) < 0)
+        int bytes = recv(client_sockfd, response, sizeof(response), 0);
+        if (bytes < 0)
         {
             cerr << "Error al recibir turno" << endl;
             exit(EXIT_FAILURE);
@@ -107,7 +106,7 @@ bool startGame(int client_sockfd)
         else
         {
             char result;
-            if (resultado == "0") // si es 0 es el turno del cliente
+            if (response == "0") // si es 0 es el turno del cliente
             {
                 result = manage_game(client_sockfd, '*');
             }
