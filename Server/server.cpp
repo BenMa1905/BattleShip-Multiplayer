@@ -147,15 +147,6 @@ void handle_user(int client_sockfd, pid_t pid)
 
             char player_result = check_shot(server_board, x, y); // esta funcion modifica el tablero del servidor
 
-            // enviar la respuesta al cliente, junto con el ataque del servidor
-            // con el formato de "resultadoDisparo,x,y" con x e y las coordenadas del disparo del servidor
-            response = string(1, player_result) + "," + to_string(server_shot.x) + "," + to_string(server_shot.y) + "\n";
-            send(client_sockfd, response.c_str(), response.length(), 0);
-
-            // se comprueba si el servidor le atino a algun barco del jugador
-            server_result = check_shot(player_board, server_shot.x, server_shot.y);
-            cout << "Disparo del servidor: " << server_result << " x: " << server_shot.x << " y: "<< server_shot.y<< endl;
-
             // se comprueba si el servidor gano
             if (check_game_over(player_board))
             {
@@ -173,6 +164,17 @@ void handle_user(int client_sockfd, pid_t pid)
                 send(client_sockfd, response.c_str(), response.length(), 0);
                 break;
             }
+            
+            // enviar la respuesta al cliente, junto con el ataque del servidor
+            // con el formato de "resultadoDisparo,x,y" con x e y las coordenadas del disparo del servidor
+            response = string(1, player_result) + "," + to_string(server_shot.x) + "," + to_string(server_shot.y) + "\n";
+            send(client_sockfd, response.c_str(), response.length(), 0);
+
+
+            // se comprueba si el servidor le atino a algun barco del jugador
+            server_result = check_shot(player_board, server_shot.x, server_shot.y);
+            cout << "Disparo del servidor: " << server_result << " x: " << server_shot.x << " y: "<< server_shot.y<< endl;
+
 
             break;
         }
