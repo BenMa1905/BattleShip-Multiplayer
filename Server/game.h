@@ -1,11 +1,3 @@
-#include <iostream>
-#include <string>
-#include <vector>
-#include <unistd.h>
-#include <thread>
-#include <mutex>
-#include <chrono>
-#include <condition_variable>
 
 
 // constantes del juego
@@ -119,6 +111,7 @@ char check_shot(Board& board, int x, int y){
     char response;
     if(board.grid[x][y] == 'O'){
         response = 'O';
+        board.grid[x][y] = 'X';
     }else{
         response = board.grid[x][y];
         board.grid[x][y] = 'X';

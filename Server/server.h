@@ -1,13 +1,5 @@
-#include <iostream>
-#include <string>
-#include <vector>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <thread>
-#include <mutex>
-#include <chrono>
-#include <condition_variable>
+
+
 
 // funciones
 int find_port(int initial_port);
