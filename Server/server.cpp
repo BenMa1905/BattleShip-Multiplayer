@@ -1,9 +1,11 @@
-
-
 // Dependencias del juego
 #include "libraries.h"
-#include "server.h"
 #include "game.h"
+// #include "server.h"
+
+
+
+
 
 using namespace std;
 
@@ -18,15 +20,12 @@ void handle_play(int client_sockfd)
 void handle_user(int client_sockfd, pid_t pid)
 
 {
-    // definicion de variables para el juego
-    Game game;
-    game.id = pid;
-    game.turn = 0;
-    game.is_game_over = false;
+    // definicion del usuario
+    Player player(pid, client_sockfd);
 
     // inicializar el tablero
     Board player_board;
-    Board server_board = create_board();
+    Board server_board = Board().createRandomBoard();
 
     // enviar un mensaje de respuesta
     string response = "inicializando juego\n";
@@ -38,11 +37,14 @@ void handle_user(int client_sockfd, pid_t pid)
     string message = string(buffer, bytes);
 
     // convertir el texto a un tablero
-    player_board = text_to_board(message);
+    player_board = textToBoard(message);
 
     // imprimir el tablero del servidor
     cout << "Tablero del servidor " << pid << endl;
-    print_board(server_board);
+    server_board.printBoard();
+
+    // definicion de variables para el juego
+    Game game(pid, player, player_board, server_board);
 
     // se determina quien empieza 0 jugador, 1 servidor
     int turn = rand() % 2;
@@ -51,7 +53,7 @@ void handle_user(int client_sockfd, pid_t pid)
     response = to_string(turn) + "\n";
     send(client_sockfd, response.c_str(), response.length(), 0);
 
-    Position server_shot = generate_random_shoot();
+    Position server_shot = randomPosition();
     char server_result;
     // se comprueba si el jugador empieza
     if (turn == 1)
@@ -110,7 +112,7 @@ void handle_user(int client_sockfd, pid_t pid)
 
         cout << "Letra: " << letter << " x: "<< x << " y: "<< y << endl;
         // generar posicion de disparo del servidor
-        server_shot = generate_random_shoot();
+        server_shot = randomPosition();
         char server_result;
         // TODO: procesar el mensaje
 
@@ -120,7 +122,7 @@ void handle_user(int client_sockfd, pid_t pid)
             // significa que es el primer turno del jugador
             // por lo tanto hay que verificar si el jugador le atino a algun barco
             // y enviar la respuesta al cliente del disparo del servidor
-            char player_result = check_shot(server_board, x, y); // esta funcion modifica el tablero del servidor
+            char player_result = server_board.checkShot( x, y); // esta funcion modifica el tablero del servidor
 
             // enviar la respuesta al cliente, junto con el ataque del servidor
             // con el formato de "resultadoDisparo,x,y" con x e y las coordenadas del disparo del servidor
@@ -128,7 +130,7 @@ void handle_user(int client_sockfd, pid_t pid)
             send(client_sockfd, response.c_str(), response.length(), 0);
 
             // se comprueba si el servidor le atino a algun barco del jugador
-            server_result = check_shot(player_board, server_shot.x, server_shot.y);
+            server_result = player_board.checkShot(server_shot.x, server_shot.y);
             cout << "Disparo del servidor: " << server_result << " x: " << server_shot.x << " y: "<< server_shot.y<< endl;
         }else{
             cout << "Turno del turno server" << endl;
@@ -144,24 +146,28 @@ void handle_user(int client_sockfd, pid_t pid)
                 break;
             }
 
-            char player_result = check_shot(server_board, x, y); // esta funcion modifica el tablero del servidor
+            char player_result = server_board.checkShot( x, y); // esta funcion modifica el tablero del servidor
 
             // se comprueba si el servidor gano
-            if (check_game_over(player_board))
+            if (player_board.checkGameOver())
             {
                 // enviar un mensaje de victoria al cliente
                 response = "D,-1,-1\n";
                 send(client_sockfd, response.c_str(), response.length(), 0);
                 break;
+                close(client_sockfd);
+                exit(EXIT_SUCCESS);
             }
 
             // se comprueba si el jugador gano
-            if (check_game_over(server_board))
+            if (server_board.checkGameOver())
             {
                 // enviar un mensaje de victoria al cliente
                 response = "V,-1,-1\n";
                 send(client_sockfd, response.c_str(), response.length(), 0);
                 break;
+                close(client_sockfd);
+                exit(EXIT_SUCCESS);
             }
             
             // enviar la respuesta al cliente, junto con el ataque del servidor
@@ -170,15 +176,15 @@ void handle_user(int client_sockfd, pid_t pid)
             send(client_sockfd, response.c_str(), response.length(), 0);
 
             // se comprueba si el servidor le atino a algun barco del jugador
-            server_result = check_shot(player_board, server_shot.x, server_shot.y);
+            server_result = player_board.checkShot( server_shot.x, server_shot.y);
             cout << "Disparo del servidor: " << server_result << " x: " << server_shot.x << " y: "<< server_shot.y<< endl;
         }
 
         // imprimir los tableros
         cout << "Tablero del jugador" << endl;
-        print_board(player_board);
+        player_board.printBoard();
         cout << "Tablero del servidor" << endl;
-        print_board(server_board);
+        server_board.printBoard();
         
     }
     close(client_sockfd);
@@ -187,7 +193,7 @@ void handle_user(int client_sockfd, pid_t pid)
 
 int main()
 {
-    srand(time(nullptr));
+    std::srand(std::time(nullptr));
     // Se crea el socket del servidor
     int server_port = find_port(5000);
 
