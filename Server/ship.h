@@ -16,10 +16,12 @@ public:
     std::vector<Position> positions;
     std::vector<bool> hits; // indica si el barco ha sido tocado en esa posicion
     char type;              // 'P' = portaaviones, 'B' = buque, 'S' = submarino, 'L' = lancha, 'X' = hundido, 'O' = agua
+    std::string name;
 
     Ship()
     {
         this->type = 'O';
+        this->name = "Agua";
     }
 
     Ship(char type, int size)
@@ -27,8 +29,27 @@ public:
         this->type = type;
         this->positions = std::vector<Position>(size);
         this->hits = std::vector<bool>(size, false);
+        switch (type)
+        {
+        case 'P':
+            this->name = "Portaaviones";
+            break;
+        case 'B':
+            this->name = "Buque";
+            break;
+        case 'S':
+            this->name = "Submarino";
+            break;
+        case 'L':
+            this->name = "Lancha";
+            break;
+
+        default:
+            this->name = "Agua";
+            break;
+        }
     }
-    
+
     // constructor para crear un barco sin sabler sus posiciones
     Ship(char type)
     {
@@ -45,6 +66,25 @@ public:
 
         this->positions = std::vector<Position>(size);
         this->hits = std::vector<bool>(size, false);
+
+        switch (type)
+        {
+        case 'P':
+            this->name = "Portaaviones";
+            break;
+        case 'B':
+            this->name = "Buque";
+            break;
+        case 'S':
+            this->name = "Submarino";
+            break;
+        case 'L':
+            this->name = "Lancha";
+            break;
+        default:
+            this->name = "Agua";
+            break;
+        }
     }
 
     void setPosition(int index, int x, int y)
@@ -89,8 +129,5 @@ public:
         return true;
     }
 };
-
-
-
 
 #endif // SHIP_H
