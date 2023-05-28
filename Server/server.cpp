@@ -32,8 +32,8 @@ void handle_user(Player player)
     player_board = textToBoard(message);
 
     // imprimir el tablero del servidor
-    std::cout << "Tablero del servidor " << player.id << std::endl;
-    server_board.printBoard();
+    // std::cout << "Tablero del servidor " << player.id << std::endl;
+    // server_board.printBoard();
 
     // definicion de variables para el juego
     Game game(player.id, player, player_board, server_board);
@@ -77,7 +77,7 @@ void handle_user(Player player)
         // procesar el mensaje
         string message = string(buffer, bytes);
         // std::cout << "\nMensaje recibido de " << player.socket_fd << " pid: " << player.id << "\nMensaje: " << message << std::endl;
-        std::cout << "Juego [" << player.client_ip << ":" << player.client_port << "]: Mensaje recibido" << message << std::endl;
+        std::cout << "Juego [" << player.client_ip << ":" << player.client_port << "]: Mensaje recibido " << message.substr(0, message.length() - 1) << std::endl;
 
         // cerrar la conexion si el cliente envia "exit"
         if (message == "exit")
@@ -127,16 +127,19 @@ void handle_user(Player player)
             if (player_result != 'X' && player_result != 'O')
             {
                 Ship ship = server_board.getShip(x, y);
-                // se comprueba si el jugador hundio algun barco del servidor
-                if (!ship.isSunk())
+                if (ship.name != "Agua")
                 {
-                    // si no se hundio se imprime que le pego al barco
-                    std::cout << "Juego [" << player.client_ip << ":" << player.client_port << "]: Disparo del jugador toca " << ship.name << std::endl;
-                }
-                else
-                {
-                    // si se hundio se imprime que hundio el barco
-                    std::cout << "Juego [" << player.client_ip << ":" << player.client_port << "]: Disparo del jugador hunde " << ship.name << std::endl;
+                    // se comprueba si el jugador hundio algun barco del servidor
+                    if (!ship.isSunk())
+                    {
+                        // si no se hundio se imprime que le pego al barco
+                        std::cout << "Juego [" << player.client_ip << ":" << player.client_port << "]: Disparo del jugador toca " << ship.name << std::endl;
+                    }
+                    else
+                    {
+                        // si se hundio se imprime que hundio el barco
+                        std::cout << "Juego [" << player.client_ip << ":" << player.client_port << "]: Disparo del jugador hunde " << ship.name << std::endl;
+                    }
                 }
             }
             // enviar la respuesta al cliente, junto con el ataque del servidor
@@ -146,17 +149,39 @@ void handle_user(Player player)
 
             // se comprueba si el servidor le atino a algun barco del jugador
             server_result = player_board.checkShot(server_shot.x, server_shot.y);
-            std::cout << "Disparo del servidor: " << server_result << " x: " << server_shot.x << " y: " << server_shot.y << std::endl;
+            // std::cout << "Disparo del servidor: " << server_result << " x: " << server_shot.x << " y: " << server_shot.y << std::endl;
+            std::cout << "Juego [" << player.client_ip << ":" << player.client_port << "]: Disparo del servidor x: " << server_shot.x << " y: " << server_shot.y << std::endl;
+
+            // se comprueba si el servidor le atino a algun barco del servidor
+            if (server_result != 'X' && server_result != 'O')
+            {
+                Ship ship = server_board.getShip(x, y);
+                if (ship.name != "Agua")
+                {
+                    // se comprueba si el servidor hundio algun barco del servidor
+                    if (!ship.isSunk())
+                    {
+                        // si no se hundio se imprime que le pego al barco
+                        std::cout << "Juego [" << player.client_ip << ":" << player.client_port << "]: Disparo del jugador toca " << ship.name << std::endl;
+                    }
+                    else
+                    {
+                        // si se hundio se imprime que hundio el barco
+                        std::cout << "Juego [" << player.client_ip << ":" << player.client_port << "]: Disparo del jugador hunde " << ship.name << std::endl;
+                    }
+                }
+            }
         }
         else
         {
-            std::cout << "Turno del turno server" << std::endl;
+            // std::cout << "Turno del turno server" << std::endl;
             // hay que comprobar si es cierto segun el tablero del jugador que el server tiene
             // almacenado, de no coincidr los resultados, se envia un mensaje de error al cliente
             // y se cierra la conexion
             if (server_result != letter && letter != 'X')
             {
                 // enviar un mensaje de error
+                std::cout << "Juego [" << player.client_ip << ":" << player.client_port << "]: Error en el mensaje recibido conexion finalizada" << std::endl;
                 response = "E,-1,-1\n";
                 send(player.socket_fd, response.c_str(), response.length(), 0);
                 // close(player.socket_fd);
@@ -165,21 +190,24 @@ void handle_user(Player player)
             }
 
             char player_result = server_board.checkShot(x, y); // esta funcion modifica el tablero del servidor
-            
+
             // se comprueba si el jugador le atino a algun barco del servidor
             if (player_result != 'X' && player_result != 'O')
             {
                 Ship ship = server_board.getShip(x, y);
-                // se comprueba si el jugador hundio algun barco del servidor
-                if (!ship.isSunk())
+                if(ship.name != "Agua")
                 {
-                    // si no se hundio se imprime que le pego al barco
-                    std::cout << "Juego [" << player.client_ip << ":" << player.client_port << "]: Disparo del jugador toca " << ship.name << std::endl;
-                }
-                else
-                {
-                    // si se hundio se imprime que hundio el barco
-                    std::cout << "Juego [" << player.client_ip << ":" << player.client_port << "]: Disparo del jugador hunde " << ship.name << std::endl;
+                    // se comprueba si el jugador hundio algun barco del servidor
+                    if (!ship.isSunk())
+                    {
+                        // si no se hundio se imprime que le pego al barco
+                        std::cout << "Juego [" << player.client_ip << ":" << player.client_port << "]: Disparo del jugador toca " << ship.name << std::endl;
+                    }
+                    else
+                    {
+                        // si se hundio se imprime que hundio el barco
+                        std::cout << "Juego [" << player.client_ip << ":" << player.client_port << "]: Disparo del jugador hunde " << ship.name << std::endl;
+                    }
                 }
             }
 
@@ -187,7 +215,7 @@ void handle_user(Player player)
             if (player_board.checkGameOver())
             {
                 // enviar un mensaje de victoria al cliente
-                std::cout << "Juego [" << player.client_ip << ":" << player.client_port << "]: Gana cliente"<< std::endl;
+                std::cout << "Juego [" << player.client_ip << ":" << player.client_port << "]: Gana cliente" << std::endl;
                 response = "D,-1,-1\n";
                 send(player.socket_fd, response.c_str(), response.length(), 0);
                 break;
@@ -199,7 +227,7 @@ void handle_user(Player player)
             if (server_board.checkGameOver())
             {
                 // enviar un mensaje de victoria al cliente
-                std::cout << "Juego [" << player.client_ip << ":" << player.client_port << "]: Gana servidor"<< std::endl;
+                std::cout << "Juego [" << player.client_ip << ":" << player.client_port << "]: Gana servidor" << std::endl;
                 response = "V,-1,-1\n";
                 send(player.socket_fd, response.c_str(), response.length(), 0);
                 break;
@@ -214,14 +242,35 @@ void handle_user(Player player)
 
             // se comprueba si el servidor le atino a algun barco del jugador
             server_result = player_board.checkShot(server_shot.x, server_shot.y);
-            std::cout << "Disparo del servidor: " << server_result << " x: " << server_shot.x << " y: " << server_shot.y << std::endl;
+            // std::cout << "Disparo del servidor: " << server_result << " x: " << server_shot.x << " y: " << server_shot.y << std::endl;
+            std::cout << "Juego [" << player.client_ip << ":" << player.client_port << "]: Disparo del servidor x: " << server_shot.x << " y: " << server_shot.y << std::endl;
+
+            // se comprueba si el servidor le atino a algun barco del servidor
+            if (server_result != 'X' && server_result != 'O')
+            {
+                Ship ship = server_board.getShip(x, y);
+                if(ship.name != "Agua")
+                {
+                    // se comprueba si el servidor hundio algun barco del servidor
+                    if (!ship.isSunk())
+                    {
+                        // si no se hundio se imprime que le pego al barco
+                        std::cout << "Juego [" << player.client_ip << ":" << player.client_port << "]: Disparo del servidor toca " << ship.name << std::endl;
+                    }
+                    else
+                    {
+                        // si se hundio se imprime que hundio el barco
+                        std::cout << "Juego [" << player.client_ip << ":" << player.client_port << "]: Disparo del servidor hunde " << ship.name << std::endl;
+                    }
+                }
+            }
         }
 
-        // imprimir los tableros
-        std::cout << "Tablero del jugador" << std::endl;
-        player_board.printBoard();
-        std::cout << "Tablero del servidor" << std::endl;
-        server_board.printBoard();
+        // imprimir los tableros (para debug)
+        // std::cout << "Tablero del jugador" << std::endl;
+        // player_board.printBoard();
+        // std::cout << "Tablero del servidor" << std::endl;
+        // server_board.printBoard();
     }
     close(player.socket_fd);
     exit(EXIT_SUCCESS);

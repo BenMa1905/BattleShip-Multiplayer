@@ -47,7 +47,7 @@ public:
         {
             if (!ship.isSunk())
             {
-                std::cout << "No se ha hundido el barco " << ship.type << std::endl;
+                // std::cout << "No se ha hundido el barco " << ship.type << std::endl;
                 return false;
             }
         }
@@ -288,25 +288,25 @@ public:
             for (int i = 0; i < 100; i++) // intenta 100 veces crear un barco válido
             {
                 // std::srand(std::time(nullptr));
-                std::cout << "creating ship: " << type << " i: " << i << std::endl;
+                // std::cout << "creating ship: " << type << " i: " << i << std::endl;
                 Ship ship = createShip(type, size, board);
 
-                for (int j = 0; j < size; j++)
-                {
-                    std::cout << "ship position: " << ship.positions[j].x << ", " << ship.positions[j].y << std::endl;
-                }
+                // for (int j = 0; j < size; j++)
+                // {
+                //     // std::cout << "ship position: " << ship.positions[j].x << ", " << ship.positions[j].y << std::endl;
+                // }
 
                 if (board.isShipPositionValid(ship))
                 {
                     board.addShipToBoard(ship);
-                    std::cout << "ship created: " << type << " at i: " << i << std::endl;
+                    // std::cout << "ship created: " << type << " at i: " << i << std::endl;
                     break;
                 }
             }
         }
 
-        std::cout << "board created: " << std::endl;
-        board.printBoard();
+        // std::cout << "board created: " << std::endl;
+        // board.printBoard();
 
         return board;
     }
@@ -380,8 +380,8 @@ Board textToBoard(std::string text)
         }
     }
 
-    std::cout << "board created: " << std::endl;
-    board.printBoard();
+    // std::cout << "board created: " << std::endl;
+    // board.printBoard();
 
     std::vector<std::vector<bool>> visited(BOARD_SIZE, std::vector<bool>(BOARD_SIZE, false));
 
@@ -405,11 +405,11 @@ Board textToBoard(std::string text)
         }
     }
 
-    std::cout << "ships on board: " << std::endl;
-    for (Ship ship : board.ships)
-    {
-        std::cout << ship.type << std::endl;
-    }
+    // std::cout << "ships on board: " << std::endl;
+    // for (Ship ship : board.ships)
+    // {
+    //     std::cout << ship.type << std::endl;
+    // }
 
     return board;
 }

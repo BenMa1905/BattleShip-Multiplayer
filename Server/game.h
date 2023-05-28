@@ -4,6 +4,15 @@
 #include "board.h"
 #include "player.h"
 
+struct game_data
+{
+    pid_t id;
+    Player player;
+    Board player_board;
+    Board server_board;
+};
+
+
 // clase que representa un juego
 class Game
 {
