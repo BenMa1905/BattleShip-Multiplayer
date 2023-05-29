@@ -1,30 +1,53 @@
-#include <cstdlib>
-#include <cstring>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <ctime>
-#include <algorithm>
+#include "libraries.h"
 
-using namespace std;
+// ! Definicion de colores para imprimir
+const std::string ANSI_RESET = "\u001b[0m";
+const std::string ANSI_BLACK = "\u001b[30m";
+const std::string ANSI_RED = "\u001b[31m";
+const std::string ANSI_GREEN = "\u001b[32m";
+const std::string ANSI_YELLOW = "\u001b[33m";
+const std::string ANSI_BLUE = "\u001b[34m";
+const std::string ANSI_MAGENTA = "\u001b[35m";
+const std::string ANSI_CYAN = "\u001b[36m";
+const std::string ANSI_WHITE = "\u001b[37m";
 
-#include "client.h"
+// Disparo que el cliente le envio al servidor (client board)
+char serverShot;
+int client_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+int lastXShoot = -1;
+int lastYShoot = -1;
+char lastServerShot = '*'; // disparo que el servidor le envio al cliente (server board)
+bool firstTurn = true;     // variable para saber si es el primer turno del cliente
+bool victory = false;      // variable para saber si el cliente gano
+int turnCounter = 0;       // variable para saber cuantos turnos han pasado
+bool waiting = true;       // variable para saber si el cliente esta esperando a que el servidor le envie un mensaje
+bool finished = false;     // variable para saber si el juego termino
+int turn = 2;              // variable para saber si es el turno del cliente o del servidor
+char showLastCharacter;
+#include "class.h"
+#include "messages.h"
+#include "listener.h"
+#include "game.h"
 
-// * Definicion de funciones
-bool startGame(int);
-
-// ! Main
-int main()
+int main(int argc, char const *argv[])
 {
-    // Se inicializa la semilla para generar números aleatorios
     std::srand(static_cast<unsigned int>(std::time(NULL)));
 
+    int server_port;
+
+    if (argc < 2)
+    {
+        cerr << "Uso: ./server <puerto>" << endl;
+        exit(EXIT_FAILURE);
+    }
+    else
+    {
+        server_port = atoi(argv[1]);
+    }
+
+    srand(time(nullptr));
     // * INICIO DEL PROGRAMA
     // Se crea el socket del cliente
-    int client_sockfd = socket(AF_INET, SOCK_STREAM, 0); // TODO CAMBIAR A SERVER socket
     if (client_sockfd < 0)
     {
         cerr << "Error al abrir el socket del cliente" << endl;
@@ -34,8 +57,8 @@ int main()
     // Se especifica la dirección del servidor
     struct sockaddr_in server_address;
     server_address.sin_family = AF_INET;
-    server_address.sin_port = htons(5000);       // Puerto del servidor
-    server_address.sin_addr.s_addr = INADDR_ANY; // Dirección IP del servidor
+    server_address.sin_port = htons(server_port); // Puerto del servidor
+    server_address.sin_addr.s_addr = INADDR_ANY;  // Dirección IP del servidor
 
     // Se establece la conexión con el servidor
     if (connect(client_sockfd, (struct sockaddr *)&server_address, sizeof(server_address)) < 0)
@@ -43,117 +66,30 @@ int main()
         cerr << "Error al establecer la conexión con el servidor" << endl;
         exit(EXIT_FAILURE);
     }
-
-    // * INICIO DEL JUEGO
-
+    game.run();
+    send_board();
+    handleFirstTurn();
+    std::thread serverThread(listenToServer); // Corrección aquí
     do
     {
-        cout << "Bienvenido al juego de batalla naval" << endl;
-        cout << "1. Iniciar partida" << endl;
-        cout << "2. Salir" << endl;
-        cout << "Ingrese una opción: ";
-        int option;
-        cin >> option;
-        switch (option)
-        {
-        case 1:
-            cout << "Iniciando partida..." << endl;
-            if (startGame(client_sockfd))
-            {
-                close(client_sockfd);
-                return 0;
-            };
-            break;
-        case 2:
-            cout << "Saliendo del juego..." << endl;
-            // Se cierra la conexión y el socket del cliente
-            close(client_sockfd);
-            return 0;
-        default:
-            cout << "Opción inválida" << endl;
-            break;
-        }
-    } while (true);
-    cout << "Saliendo del juego..." << endl;
-    // Se cierra la conexión y el socket del cliente
-    close(client_sockfd);
-    return 0;
+        finished = manageGame();
+    } while (finished == false);
 
-    return 0;
-}
-
-// ! startGame
-bool startGame(int client_sockfd)
-{
-    // * DECLARACION DE VARIABLES
-    char response[1024];
-
-    // * CREACION DE TABLERO
-    clientBoard = create_board();
-    std::string boardString = board_to_string();
-    if (send(client_sockfd, boardString.c_str(), boardString.length(), 0) < 0)
+    serverThread.join();
+    if (victory)
     {
-        cerr << "Error al enviar el tablero del cliente" << endl;
-        exit(EXIT_FAILURE);
+        cout << ANSI_RED << "Juego ha terminado" << endl;
+        cout << "HAS PERDIDO" << endl;
+        cout << "El servidor ha hundido todos tus barcos en " << ANSI_CYAN << turnCounter << ANSI_RED << " turnos" << ANSI_RESET << endl;
+        exit(EXIT_SUCCESS);
     }
     else
     {
-        int bytes = recv(client_sockfd, response, sizeof(response), 0);
-        string message = string(response, bytes);
-        if (bytes < 0)
-        {
-            cerr << "Error al recibir turno" << endl;
-            exit(EXIT_FAILURE);
-        }
-        else
-        {
-
-            cout << ANSI_BLACK << "TURNO " << message << ANSI_RESET << endl;
-
-            char result;
-            if (response == "0") // si es 0 es el turno del cliente
-            {
-                result = manage_game(client_sockfd, '*');
-            }
-            else // si es 1 es el turno del servidor
-            {
-                char serverShot;
-                cout << ANSI_CYAN << "Esperando turno del servidor" << ANSI_RESET << endl;
-                printBoard();
-                serverShot = receive_shot(client_sockfd);
-                result = manage_game(client_sockfd, serverShot);
-            }
-            // * MANEJO DE RESULTADOS DE LA PARTIDA
-            switch (result)
-            {
-            case 'D':
-                cout << ANSI_RED << "Derrota del cliente" << ANSI_RESET << endl;
-                return false;
-                break;
-            case 'V':
-                cout << ANSI_GREEN << "Victoria del cliente" << ANSI_RESET << endl;
-                return true;
-                break;
-            case 'E':
-                cout << ANSI_RED << "Error del servidor" << ANSI_RESET << endl;
-                return false;
-                break;
-            default:
-                cout << ANSI_RED << "Error de cliente" << ANSI_RESET << endl;
-            return false;
-                break;
-            }
-        }
-
-        /* * FIN DEL JUEGO
-        TODO: añadir mensaje de quien comienza el turno
-        TODO: revisar la impresion de los tableros
-        TODO: Falta el manejo de la respuesta como :
-        * D: Derrota del cliente
-        * V: Victoria del cliente
-        * E: Error
-        */
+        cout << ANSI_GREEN << "Juego ha terminado" << endl;
+        cout << "HAS GANADO" << endl;
+        cout << "Has hundido todos los barcos del servidor en " << ANSI_CYAN << turnCounter << ANSI_GREEN << " turnos" << ANSI_RESET << endl;
+        exit(EXIT_SUCCESS);
     }
 
-    return false;
+    return 0;
 }
